@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    environment {
+        // Define your SSH credentials ID in Jenkins
+        SSH_CREDENTIALS = '65de5f5c-d37d-4332-9e24-316d25df7442'
+        EC2_INSTANCE = '3.88.235.39'
+        REMOTE_DIR = '/path/to/remote/directory'
+        JAR_FILE = 'target/your-app.jar'
+        // Optional: Command to restart your application
+        RESTART_COMMAND = 'sudo systemctl restart your-app.service'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    sh 'mvn clean package'
+                }
+            }
+        }
+
+        stage('Deploy to EC2') {
+            steps {
+                script {
+                    // Transfer the JAR file to EC2 instance
+                    sshPublisher(
+                        continueOnError: true,
+                        failOnError: true,
+                        publishers: [
+                            sshPublisherDesc(
+                                configName: SSH_CREDENTIALS,
+                                transfers: [
+                                    sshTransfer(
+                                        execCommand: RESTART_COMMAND,
+                                        remoteDirectory: REMOTE_DIR,
+                                        sourceFiles: JAR_FILE
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                }
+            }
+        }
+    }
+}
